@@ -9,7 +9,7 @@ import taskRoutes from "./routes/task.routes.js";
 const app = express();
 
 // Leer la URL del frontend desde variables de entorno (o localhost)
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const FRONTEND_URL = "https://mi-frotend.vercel.app";
 
 app.use(
   cors({

@@ -1,1 +1,1 @@
-export const TOKEN_SECRET = "Este es código secreto";
+export const TOKEN_SECRET = "Esteescódigosecreto";

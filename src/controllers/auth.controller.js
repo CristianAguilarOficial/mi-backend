@@ -3,7 +3,7 @@ import bcryptjs from "bcryptjs";
 import { createAccessToken } from "../libs/jwt.js";
 import jwt from "jsonwebtoken";
 import { TOKEN_SECRET } from "../config.js";
-import e from "express";
+
 //rutas controllers
 
 export const register = async (req, res) => {

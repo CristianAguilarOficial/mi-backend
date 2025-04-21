@@ -78,11 +78,11 @@ export const login = async (req, res) => {
 
 // LOGOUT USER
 export const logout = (req, res) => {
-  res.cookie("token", "", {
-    httpOnly: true,
-    secure: true,
+  res.cookie("token", token, {
     sameSite: "none",
-    expires: new Date(0),
+    secure: true,
+    httpOnly: true, // Cambia a true para mayor seguridad
+    maxAge: 24 * 60 * 60 * 1000, // 1 día en milisegundos
   });
   return res.sendStatus(200);
 };

@@ -1,120 +1,85 @@
 //auth.controllers.js
-import User from "../models/user.model.js";
-import bcryptjs from "bcryptjs";
-import { createAccessToken } from "../libs/jwt.js";
-import jwt from "jsonwebtoken";
-import { TOKEN_SECRET } from "../config.js";
+import { createContext, useState, useContext, useEffect } from "react";
+import {
+  registerRequest,
+  loginRequest,
+  verifyTokenRequest,
+  logoutRequest,
+} from "../api/auth";
 
-// REGISTER
-export const register = async (req, res) => {
-  const { email, password, username } = req.body;
-
-  try {
-    const userFound = await User.findOne({ email });
-    if (userFound) return res.status(400).json(["The email is already in use"]);
-
-    const passwordHash = await bcryptjs.hash(password, 10);
-
-    const newUser = new User({
-      username,
-      email,
-      password: passwordHash,
-    });
-
-    const userSaved = await newUser.save();
-    const token = await createAccessToken({ id: userSaved._id });
-
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
-
-    res.json({
-      id: userSaved._id,
-      username: userSaved.username,
-      email: userSaved.email,
-      createdAt: userSaved.createdAt,
-      updatedAt: userSaved.updatedAt,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+export const AuthContext = createContext();
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  return context;
 };
 
-// LOGIN
-export const login = async (req, res) => {
-  const { email, password } = req.body;
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [errors, setError] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  try {
-    const userFound = await User.findOne({ email });
-    if (!userFound) return res.status(400).json({ message: "User not found" });
+  const signup = async (userData) => {
+    try {
+      const res = await registerRequest(userData);
+      setUser(res.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      setError(error.response?.data || ["Registration failed"]);
+    }
+  };
 
-    const isMatch = await bcryptjs.compare(password, userFound.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Incorrect password" });
+  const signin = async (credentials) => {
+    try {
+      const res = await loginRequest(credentials);
+      setUser(res.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      const msg = error.response?.data;
+      setError(Array.isArray(msg) ? msg : [msg.message || "Login failed"]);
+    }
+  };
 
-    const token = await createAccessToken({ id: userFound._id });
+  const logout = async () => {
+    try {
+      await logoutRequest();
+    } catch {
+      // ignore errors
+    }
+    setIsAuthenticated(false);
+    setUser(null);
+  };
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
+  useEffect(() => {
+    if (errors.length > 0) {
+      const timer = setTimeout(() => setError([]), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errors]);
 
-    res.json({
-      id: userFound._id,
-      username: userFound.username,
-      email: userFound.email,
-      createdAt: userFound.createdAt,
-      updatedAt: userFound.updatedAt,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await verifyTokenRequest();
+        if (res.data) {
+          setUser(res.data);
+          setIsAuthenticated(true);
+        }
+      } catch {
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-// LOGOUT
-export const logout = (req, res) => {
-  res.cookie("token", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    expires: new Date(0),
-  });
-  return res.sendStatus(200);
-};
-
-// PROFILE
-export const profile = async (req, res) => {
-  const userFound = await User.findById(req.user.id);
-  if (!userFound) return res.status(400).json({ message: "User not found" });
-
-  return res.json({
-    id: userFound._id,
-    username: userFound.username,
-    email: userFound.email,
-    createdAt: userFound.createdAt,
-    updatedAt: userFound.updatedAt,
-  });
-};
-
-// VERIFY TOKEN
-export const verifyToken = async (req, res) => {
-  const { token } = req.cookies;
-
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-  jwt.verify(token, TOKEN_SECRET, async (err, user) => {
-    if (err) return res.status(401).json({ message: "Unauthorized" });
-
-    const userFound = await User.findById(user.id);
-    if (!userFound) return res.status(401).json({ message: "Unauthorized" });
-
-    return res.json({
-      id: userFound._id,
-      username: userFound.username,
-      email: userFound.email,
-    });
-  });
+  return (
+    <AuthContext.Provider
+      value={{ signup, signin, logout, loading, user, isAuthenticated, errors }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };

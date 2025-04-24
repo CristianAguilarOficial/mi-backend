@@ -6,9 +6,17 @@ import {
   createVerificationToken,
   verifyEmailToken,
 } from "../libs/emailVerification.js";
-import { sendVerificationEmail } from "../services/mail.service.js";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../services/mail.service.js";
 import jwt from "jsonwebtoken";
 import { TOKEN_SECRET } from "../config.js";
+import {
+  generateResetToken,
+  createPasswordResetToken,
+  verifyResetToken,
+} from "../libs/passwordReset.js";
 
 // REGISTER USER
 export const register = async (req, res) => {
@@ -210,4 +218,123 @@ export const verifyToken = (req, res) => {
       return res.status(500).json({ message: error.message });
     }
   });
+};
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    // Buscar el usuario
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Por seguridad, no informamos si el correo existe o no
+      return res.status(200).json({
+        message:
+          "Si tu correo está registrado, recibirás un enlace para restablecer tu contraseña",
+      });
+    }
+
+    // Generar token de restablecimiento
+    const resetToken = generateResetToken();
+    const expiresIn = new Date();
+    expiresIn.setHours(expiresIn.getHours() + 1); // Token válido por 1 hora
+
+    // Guardar token en el usuario
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = expiresIn;
+    await user.save();
+
+    // Generar JWT para el enlace
+    const resetJWT = await createPasswordResetToken(user._id, resetToken);
+
+    // Enviar correo
+    const emailSent = await sendPasswordResetEmail(email, resetJWT);
+
+    if (!emailSent) {
+      console.error("Failed to send password reset email");
+    }
+
+    return res.status(200).json({
+      message:
+        "Si tu correo está registrado, recibirás un enlace para restablecer tu contraseña",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};
+
+// Restablecer contraseña
+export const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  try {
+    // Verificar el token
+    const decoded = await verifyResetToken(token);
+
+    // Buscar el usuario
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Verificar que el token coincida y no haya expirado
+    if (
+      user.resetPasswordToken !== decoded.token ||
+      !user.resetPasswordExpires ||
+      new Date() > user.resetPasswordExpires
+    ) {
+      return res.status(400).json({
+        message: "El enlace de restablecimiento es inválido o ha expirado",
+      });
+    }
+
+    // Actualizar contraseña
+    const passwordHash = await bcryptjs.hash(password, 10);
+    user.password = passwordHash;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Contraseña actualizada correctamente",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return res
+      .status(500)
+      .json({ message: "Error al restablecer la contraseña" });
+  }
+};
+
+// Verificar validez del token de reset
+export const verifyResetPasswordToken = async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    // Verificar el token
+    const decoded = await verifyResetToken(token);
+
+    // Buscar el usuario
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ valid: false, message: "Token inválido" });
+    }
+
+    // Verificar que el token coincida y no haya expirado
+    if (
+      user.resetPasswordToken !== decoded.token ||
+      !user.resetPasswordExpires ||
+      new Date() > user.resetPasswordExpires
+    ) {
+      return res
+        .status(400)
+        .json({ valid: false, message: "Token inválido o expirado" });
+    }
+
+    return res.status(200).json({ valid: true });
+  } catch (error) {
+    console.error("Verify reset token error:", error);
+    return res.status(400).json({ valid: false, message: "Token inválido" });
+  }
 };

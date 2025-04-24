@@ -6,6 +6,9 @@ import {
   profile,
   verifyToken,
   verifyEmail, // Nuevo controlador
+  forgotPassword,
+  resetPassword,
+  verifyResetPasswordToken,
 } from "../controllers/auth.controller.js";
 import { authRequired } from "../middlewares/validateToken.js";
 import { validateShema } from "../middlewares/validator.widdlewares.js";
@@ -19,5 +22,8 @@ router.post("/logout", logout);
 router.get("/verify", verifyToken);
 router.get("/profile", authRequired, profile);
 router.get("/verify-email/:token", verifyEmail); // Nueva ruta para verificación de email
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+router.get("/verify-reset-token/:token", verifyResetPasswordToken);
 
 export default router;

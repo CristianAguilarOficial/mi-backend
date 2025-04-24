@@ -1,1 +1,1 @@
-export const TOKEN_SECRET = "hellotokensecret2005";
+export const TOKEN_SECRET = process.env.TOKEN_SECRET;

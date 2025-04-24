@@ -5,17 +5,29 @@ const userSchema = new mongoose.Schema(
     username: {
       type: String,
       require: true,
-      trim: true, //Quitar espacios
+      trim: true,
     },
     email: {
       type: String,
       require: true,
-      trim: true, //Quitar espacios
+      trim: true,
       unique: true,
     },
     password: {
       type: String,
       require: true,
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      default: null,
+    },
+    verificationTokenExpires: {
+      type: Date,
+      default: null,
     },
   },
   {

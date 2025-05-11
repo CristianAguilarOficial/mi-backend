@@ -23,6 +23,27 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(cookieParser());
 
+// Rutas de la API
 app.use('/api', authRoutes);
 app.use('/api', taksRoutes);
+
+// Middleware para manejar rutas no encontradas (404)
+app.use((req, res, next) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'Ruta no encontrada',
+    path: req.originalUrl
+  });
+});
+
+// Middleware para manejar errores generales (500)
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    status: 'error',
+    message: err.message || 'Error interno del servidor',
+  });
+});
+
 export default app;

@@ -1,27 +1,28 @@
 //exportar express
-import express from "express";
-import morgan from "morgan";
-import cookieParser from "cookie-parser";
+import express from 'express';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import { FRONTEND_URL } from './config.js';
 
-import authRoutes from "./routes/auth.routes.js";
-import taksRoutes from "./routes/task.routes.js";
-import cors from "cors";
+import authRoutes from './routes/auth.routes.js';
+import taksRoutes from './routes/task.routes.js';
 
 const app = express();
-const FRONTEND_URL = process.env.URLFRONT || "http://localhost:5173";
-console.log("Frontend URL:", FRONTEND_URL);
+const Frontend_url = FRONTEND_URL; //cambiar en el deploy
+
 app.use(
   cors({
-    origin: FRONTEND_URL, //frontend
+    origin: Frontend_url, //frontend
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
-app.use(morgan("dev"));
+app.use(morgan('dev'));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/api", authRoutes);
-app.use("/api", taksRoutes);
+app.use('/api', authRoutes);
+app.use('/api', taksRoutes);
 export default app;
